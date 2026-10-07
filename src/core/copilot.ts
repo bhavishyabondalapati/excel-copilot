@@ -7,7 +7,7 @@
 // Nothing here imports Office.js or React, so the whole flow runs in Vitest.
 
 import type { WorkbookGateway } from "./gateway";
-import { buildPlan, buildUndoOps, detectDrift, rangesToSnapshot, snapshotDifferences, type CellChange, type Plan } from "./planner";
+import { buildPlan, buildUndoOps, rangesToSnapshot, snapshotDifferences, type Plan } from "./planner";
 import { buildExplainRequest, buildRepairMessage, buildUserMessage, SYSTEM_PROMPT } from "./prompt";
 import { responseJsonSchema } from "./schema";
 import type { Snapshot, WriteOp } from "./types";
@@ -44,8 +44,14 @@ export class StalePreviewError extends Error {
 
 export interface AppliedPlan {
   plan: Plan;
-  /** Snapshot taken immediately before writing: what undo restores. */
+  /** Writes that restore the snapshot taken immediately before applying. */
   undoOps: WriteOp[];
+  /**
+   * The cells as Excel reports them right after applying. Excel normalises what
+   * we write (e.g. "=sum(a1)" becomes "=SUM(A1)"), so drift is measured against
+   * this read, not against what the plan intended to write.
+   */
+  afterSnapshot: Snapshot;
   appliedAt: Date;
 }
 
@@ -123,13 +129,14 @@ export class Copilot {
     if (changed.length) throw new StalePreviewError(changed);
     const undoOps = buildUndoOps(plan.touchedRanges, now);
     await this.workbook.applyOps(plan.ops);
-    return { plan, undoOps, appliedAt: new Date() };
+    const afterSnapshot = await this.workbook.readCells(plan.touchedRanges);
+    return { plan, undoOps, afterSnapshot, appliedAt: new Date() };
   }
 
-  /** Cells the user changed after `applied` — undo would overwrite these. */
-  async checkDrift(applied: AppliedPlan): Promise<CellChange[]> {
+  /** Keys ("Sheet1!B2") of cells edited after `applied` — undo would overwrite these. */
+  async checkDrift(applied: AppliedPlan): Promise<string[]> {
     const current = await this.workbook.readCells(applied.plan.touchedRanges);
-    return detectDrift(applied.plan, current);
+    return snapshotDifferences(applied.afterSnapshot, current);
   }
 
   async undo(applied: AppliedPlan): Promise<void> {

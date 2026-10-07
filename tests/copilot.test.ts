@@ -84,7 +84,27 @@ describe("Copilot end to end (fake provider + memory workbook)", () => {
     const copilot = new Copilot(fakeJson(totals), wb);
     const applied = await copilot.apply(await copilot.propose("totals"));
     wb.set("Sheet1", "D2", 99);
-    expect((await copilot.checkDrift(applied)).map((c) => c.address)).toEqual(["D2"]);
+    expect(await copilot.checkDrift(applied)).toEqual(["Sheet1!D2"]);
+  });
+
+  it("does not mistake Excel's normalisation of a formula for a user edit", async () => {
+    // Real Excel upper-cases function names; simulate that.
+    class NormalisingWorkbook extends MemoryWorkbook {
+      override async applyOps(ops: Parameters<MemoryWorkbook["applyOps"]>[0]) {
+        await super.applyOps(
+          ops.map((op) =>
+            op.kind === "setContents"
+              ? { ...op, contents: op.contents.map((r) => r.map((c) => (typeof c === "string" ? c.toUpperCase() : c))) }
+              : op,
+          ),
+        );
+      }
+    }
+    const wb = new NormalisingWorkbook({ sheets: { Sheet1: { A1: 1, A2: 2 } } });
+    const copilot = new Copilot(fakeJson({ summary: "s", actions: [{ type: "write_formula", cell: "A3", formula: "=sum(a1:a2)" }] }), wb);
+    const applied = await copilot.apply(await copilot.propose("sum"));
+    expect(wb.get("Sheet1", "A3").formula).toBe("=SUM(A1:A2)");
+    expect(await copilot.checkDrift(applied)).toEqual([]);
   });
 
   it("surfaces provider errors unchanged", async () => {

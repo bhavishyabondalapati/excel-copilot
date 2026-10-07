@@ -1,4 +1,4 @@
-import { buildPlan, buildUndoOps, detectDrift, rangesToSnapshot, snapshotDifferences } from "../src/core/planner";
+import { buildPlan, buildUndoOps, rangesToSnapshot, snapshotDifferences } from "../src/core/planner";
 import { validateResponse } from "../src/core/validator";
 import { MemoryWorkbook } from "../src/core/memoryWorkbook";
 import { displayContent } from "../src/core/cells";
@@ -90,17 +90,6 @@ describe("apply + undo round trip", () => {
     await wb.applyOps(buildUndoOps(p.touchedRanges, snapshot));
     const after = await wb.readCells([{ sheet: "Sheet1", start: { row: 0, col: 0 }, end: { row: 4, col: 4 } }]);
     expect(snapshotDifferences(before, after)).toEqual([]);
-  });
-});
-
-describe("detectDrift", () => {
-  it("spots user edits made after applying", async () => {
-    const wb = setup();
-    const { plan: p } = await plan(wb, [{ type: "fill_range", range: "D2:D3", formulaTemplate: "=B{row}*C{row}" }]);
-    await wb.applyOps(p.ops);
-    expect(detectDrift(p, await wb.readCells(p.touchedRanges))).toEqual([]);
-    wb.set("Sheet1", "D3", 42);
-    expect(detectDrift(p, await wb.readCells(p.touchedRanges)).map((c) => c.address)).toEqual(["D3"]);
   });
 });
 

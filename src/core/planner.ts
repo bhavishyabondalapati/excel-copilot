@@ -154,17 +154,10 @@ export function buildUndoOps(touchedRanges: RangeRef[], snapshot: Snapshot): Wri
   return [...formats, ...contents];
 }
 
-/** Cells the user has edited since the plan was applied (content or format). */
-export function detectDrift(plan: Plan, current: Snapshot): CellChange[] {
-  return plan.changes.filter((c) => {
-    const now = current[c.key] ?? EMPTY_CELL;
-    const contentMoved = c.contentChanged && !sameContent(now, c.after);
-    const formatMoved = c.formatChanged && !sameFormat(now.format, c.after.format);
-    return contentMoved || formatMoved;
-  });
-}
-
-/** Cells whose content/format differs between two snapshots (used for stale-preview checks). */
+/**
+ * Keys of cells whose content/format differs between two snapshots of the same
+ * ranges. Used for the stale-preview check (before apply) and drift check (before undo).
+ */
 export function snapshotDifferences(a: Snapshot, b: Snapshot): string[] {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
   return [...keys].filter((k) => {

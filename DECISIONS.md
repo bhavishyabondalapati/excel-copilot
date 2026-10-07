@@ -66,8 +66,12 @@ Newest entries go at the bottom of each section.
   so restoring both is more correct and still cheap. Formats go first so a text
   number format ("@") is back in place before contents are rewritten.
 - **Drift detection before undo.** If the user edited a cell after applying, undo
-  would silently overwrite that edit. `detectDrift` lists such cells so the UI can
-  warn first.
+  would silently overwrite that edit, so the UI warns first. Drift is measured
+  against a re-read taken *right after applying*, not against what the plan meant
+  to write: Excel normalises input (`=sum(a1)` → `=SUM(A1)`, number formats), and
+  comparing with the plan's intent would cry wolf on every formula. (The first
+  version compared with the plan; caught in self-review, fixed with a regression
+  test that simulates Excel's upper-casing.)
 - **`WorkbookGateway` interface ("ports and adapters").** The core only knows this
   interface. `MemoryWorkbook` implements it for tests and the browser demo; the
   Office.js adapter implements it for real Excel.

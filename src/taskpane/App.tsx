@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from "react";
 import { Copilot, StalePreviewError, ValidationFailedError, type AppliedPlan, type Proposal } from "../core/copilot";
 import type { WorkbookGateway } from "../core/gateway";
 import type { MemoryWorkbook } from "../core/memoryWorkbook";
-import type { CellChange } from "../core/planner";
 import type { ValidationIssue } from "../core/validator";
 import { DEMO_PROMPTS } from "../demo/demoProvider";
 import { ProviderError } from "../providers/types";
@@ -36,7 +35,7 @@ export function App({ workbook, demoWorkbook }: AppProps) {
   const [failedIssues, setFailedIssues] = useState<ValidationIssue[]>([]);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [history, setHistory] = useState<AppliedPlan[]>([]);
-  const [drift, setDrift] = useState<CellChange[] | null>(null);
+  const [drift, setDrift] = useState<string[] | null>(null);
   const [explanation, setExplanation] = useState<Explanation | null>(null);
   const [, forceRender] = useState(0); // re-draw the demo grid after writes
   const abortRef = useRef<AbortController | null>(null);
@@ -246,7 +245,7 @@ export function App({ workbook, demoWorkbook }: AppProps) {
             <div className="warning-box" role="alert">
               <p>
                 You edited {drift.length} of these cells after applying (
-                {drift.slice(0, 5).map((d) => d.address).join(", ")}{drift.length > 5 ? "…" : ""}).
+                {drift.slice(0, 5).join(", ")}{drift.length > 5 ? "…" : ""}).
                 Undo will overwrite those edits.
               </p>
               <div className="row">

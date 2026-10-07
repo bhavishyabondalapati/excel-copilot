@@ -61,9 +61,9 @@ A request flows through five steps:
    `setStyle`). The UI shows the diff.
 5. **Apply / undo.** On Apply, the cells are read *again*: if they changed since
    the preview, the add-in refuses ("stale preview"). Otherwise that fresh read
-   becomes the **undo snapshot**, and the ops are written in one batch. Undo first
-   checks for **drift** (cells you edited after applying) and warns before
-   overwriting them.
+   becomes the **undo snapshot**, and the ops are written in one batch. Right after writing, the cells are read once more. Undo compares the
+   sheet with that read to find **drift** (cells you edited after applying) and
+   warns before overwriting them.
 
 Three design ideas hold this together:
 
@@ -116,7 +116,7 @@ excel-copilot/
 │   │   ├── validator.ts       Two-layer validation (shape + meaning) returning a list of issues
 │   │   ├── types.ts           Shared data types: CellState, Snapshot, WorkbookContext, WriteOp
 │   │   ├── cells.ts           Compare/display cell content and formats
-│   │   ├── planner.ts         Simulate actions -> diff, write ops, undo ops, drift detection
+│   │   ├── planner.ts         Simulate actions -> diff, write ops, undo ops, snapshot comparison
 │   │   ├── prompt.ts          System prompt and rendering the workbook context as text
 │   │   ├── gateway.ts         The WorkbookGateway interface (the "port")
 │   │   ├── memoryWorkbook.ts  In-memory workbook implementing the gateway (tests + demo)
