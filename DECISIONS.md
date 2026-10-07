@@ -71,3 +71,48 @@ Newest entries go at the bottom of each section.
 - **`WorkbookGateway` interface ("ports and adapters").** The core only knows this
   interface. `MemoryWorkbook` implements it for tests and the browser demo; the
   Office.js adapter implements it for real Excel.
+
+## LLM providers
+
+- **`LLMProvider` interface with one method, `complete()`.** Returns raw text;
+  parsing and validation live in the core so every provider is treated the same.
+- **Anthropic via the official `@anthropic-ai/sdk`** with
+  `dangerouslyAllowBrowser: true` (the task pane is a browser page). Default model
+  `claude-opus-5-5`, `output_config.effort: "medium"`, structured output via
+  `output_config.format: {type: "json_schema", ...}`. Server-side refusal
+  fallbacks (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) are on
+  so a safety-classifier decline retries on Anthropic's recommended model.
+  `stop_reason` is checked (`refusal`, `max_tokens`) before reading content.
+- **Gemini via plain `fetch` to `generateContent`** rather than Google's SDK: one
+  endpoint, easy to stub in tests, one fewer dependency. JSON mode uses
+  `responseMimeType: "application/json"` + `responseJsonSchema`. Default model
+  `gemini-3.8-flash` (from the Gemini models page, October 2026). The key is sent
+  in the `x-goog-api-key` header, never in the URL.
+- **Neither real provider was called live while building** (no API keys were
+  available to the agent). Both are tested against stubbed `fetch` responses
+  shaped like the documented API responses.
+- **`FakeProvider`** replays scripted replies and records requests. Used by the
+  tests and selectable in the UI so the whole flow works without a key.
+- **Errors are normalised to `ProviderError` with a `kind`** (auth, rate_limit,
+  refusal, truncated, network, bad_response, other) so the UI can show a useful
+  message whatever the provider.
+- **API keys are typed into the Settings panel and kept in the browser's
+  `localStorage`**, never in source files or the bundle. Fine for a personal
+  add-in; a shared deployment should put a small server in front of the LLM APIs.
+
+## Orchestrator
+
+- **One automatic repair attempt.** If the reply fails validation, the model sees
+  its own reply plus the list of problems and gets one more try. Costs at most one
+  extra call and fixes most size/format slips.
+- **All-or-nothing.** If any action has an error the whole reply is rejected; we
+  never apply "the valid half" of a plan.
+- **Stale-preview check.** `apply()` re-reads the cells; if anything changed since
+  the preview, it refuses and asks for a fresh preview. That same read is the undo
+  snapshot, so undo always restores what was there immediately before writing.
+- **Sheet data is marked as data in the prompt** (`<workbook>` vs `<request>` tags
+  plus a rule to ignore instructions inside cells) to reduce prompt injection
+  from spreadsheet contents. The validator's blocked-function list is the second
+  line of defence.
+- **"Explain this formula" reuses the same pipeline** with a fixed request and
+  only keeps the `explain` actions, so it can never edit the sheet.
