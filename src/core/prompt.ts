@@ -3,6 +3,7 @@
 
 import { colToLetters, parseRange } from "./a1";
 import { displayContent } from "./cells";
+import { BLOCKED_FUNCTIONS } from "./formula";
 import type { GridSample, WorkbookContext } from "./types";
 
 export const SYSTEM_PROMPT = `You are a spreadsheet assistant inside Microsoft Excel.
@@ -29,7 +30,8 @@ Action types:
 Rules:
 - Prefer formulas over hard-coded results, so the sheet stays live.
 - Only use sheets that exist. Addresses without a sheet name refer to the active sheet.
-- Do not use WEBSERVICE, RTD, CALL, DDE links, or references to other workbooks.
+- Never use these functions (they reach outside the workbook and will be rejected):
+  ${[...BLOCKED_FUNCTIONS.keys()].join(", ")}. Also no DDE links or references to other workbooks.
 - Keep changes minimal: do only what was asked. Do not overwrite data unless asked.
 - If the request is unclear or impossible, return no write actions and one explain
   action saying what you need.

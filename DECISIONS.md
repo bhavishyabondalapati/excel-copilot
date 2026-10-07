@@ -43,9 +43,26 @@ Newest entries go at the bottom of each section.
 - **Errors vs warnings.** Errors block applying (bad address, wrong array size,
   unsafe formula). Warnings are shown but allowed (circular reference,
   overlapping writes, INDIRECT/OFFSET/HYPERLINK).
-- **Blocked functions:** WEBSERVICE, RTD, CALL, REGISTER.ID, EXEC, plus DDE
-  (`|`) and links to other workbooks. These reach outside the workbook and could
-  leak data if a prompt injection in cell content tricked the model.
+- **Blocked functions:** anything that can send workbook data outside the
+  workbook or run external code, so a prompt injection in cell text can't use the
+  model to leak data. Reviewed against Microsoft's function docs in October 2026:
+  - network / cloud: WEBSERVICE, IMAGE (any URL), IMPORTTEXT and IMPORTCSV (URL or
+    local file), COPILOT (sends cell context to an AI service that can search the
+    web), TRANSLATE and DETECTLANGUAGE (Microsoft Translator), STOCKHISTORY
+    (internet data), PY (Python in Excel runs in Microsoft's cloud);
+  - external code / servers: RTD, CALL, REGISTER.ID, EXEC;
+  - plus DDE (`|`) and links to other workbooks.
+  IMAGE was missed in the first version and added after review. Names are
+  matched case-insensitively, with or without Excel's `_xlfn.` / `_xlws.` storage
+  prefixes. Each blocked function carries a reason that is shown to the user and
+  sent back to the model in the repair loop. The same list is put into the system
+  prompt so the model avoids these functions in the first place.
+- **Reviewed but not blocked:** HYPERLINK (warned: leaks only if the user clicks),
+  CUBE* functions (they query connections already in the workbook and can't target
+  an arbitrary URL), FILTERXML and ENCODEURL (no network on their own).
+  **Known gap:** custom functions from other installed add-ins (e.g.
+  `CONTOSO.FETCH`) can do anything; they can't be told apart from built-in dotted
+  names like `NORM.DIST` without an allow-list of every built-in function.
 - **Formula scanning is a lightweight lexer, not a full parser.** It masks
   string literals, then uses regexes. Good enough for safety checks and
   self-reference warnings; documented as best-effort.
