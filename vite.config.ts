@@ -23,6 +23,7 @@ export default defineConfig({
   build: {
     outDir: "../../dist",
     emptyOutDir: true,
+    chunkSizeWarningLimit: 800, // one bundle served from localhost; splitting adds little
   },
   server: {
     port: 3000,

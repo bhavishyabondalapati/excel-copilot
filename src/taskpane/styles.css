@@ -1,0 +1,88 @@
+:root {
+  --bg: #faf9f8;
+  --card: #ffffff;
+  --text: #201f1e;
+  --muted: #605e5c;
+  --border: #e1dfdd;
+  --accent: #107c41; /* Excel green */
+  --accent-text: #ffffff;
+  --error-bg: #fde7e9;
+  --error: #a4262c;
+  --warn-bg: #fff4ce;
+  --warn: #8a6d00;
+  --pending: #e6f4ea;
+  --code-bg: #f3f2f1;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  color: var(--text);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1f1f;
+    --card: #292929;
+    --text: #f3f2f1;
+    --muted: #b3b0ad;
+    --border: #3b3a39;
+    --accent: #2e9e61;
+    --error-bg: #442726;
+    --error: #f1707b;
+    --warn-bg: #433519;
+    --warn: #fce100;
+    --pending: #1e3b2a;
+    --code-bg: #333;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); }
+main { padding: 12px; display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; }
+h1 { font-size: 18px; margin: 0; }
+h2 { font-size: 15px; margin: 0 0 8px; }
+.top { display: flex; align-items: baseline; gap: 8px; }
+.top .link { margin-left: auto; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+.card.error { background: var(--error-bg); border-color: var(--error); color: var(--error); }
+.label { display: block; font-weight: 600; margin-bottom: 6px; }
+textarea, input, select {
+  width: 100%; font: inherit; color: inherit; background: var(--card);
+  border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;
+}
+textarea { resize: vertical; }
+label { display: block; margin-bottom: 10px; }
+label > input, label > select { margin-top: 4px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+button {
+  font: inherit; padding: 6px 12px; border-radius: 4px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--card); color: var(--text);
+}
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button.danger { background: var(--error); border-color: var(--error); color: #fff; }
+button.link { border: none; background: none; color: var(--accent); padding: 0; text-decoration: underline; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 12px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.warning-text { color: var(--warn); margin: 8px 0 0; }
+.warning-box { background: var(--warn-bg); border-radius: 4px; padding: 8px; margin-top: 8px; }
+.explain { white-space: pre-wrap; line-height: 1.45; }
+code { font-family: Menlo, Consolas, monospace; font-size: 12px; background: var(--code-bg); padding: 1px 4px; border-radius: 3px; word-break: break-all; }
+code.block { display: block; padding: 6px 8px; }
+.issues { margin: 8px 0 0; padding-left: 18px; }
+.issues li.error { color: var(--error); }
+.issues li.warning { color: var(--warn); }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+table.diff th, table.diff td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.diff td.addr { font-weight: 600; white-space: nowrap; }
+table.diff td.after { background: var(--pending); }
+.fmt { font-size: 12px; color: var(--muted); }
+.history { padding-left: 18px; margin: 0; }
+.history li { margin-bottom: 6px; }
+.history button { margin-left: 8px; padding: 2px 8px; }
+.demo-grid table { font-size: 12px; table-layout: fixed; }
+.demo-grid th { background: var(--code-bg); color: var(--muted); font-weight: normal; padding: 2px 4px; border: 1px solid var(--border); width: 28px; }
+.demo-grid td { border: 1px solid var(--border); padding: 2px 4px; height: 22px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 110px; cursor: cell; background: var(--card); }
+.demo-grid td.pending { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.demo-grid td.selected { outline: 2px solid var(--accent); outline-offset: -2px; }
+.demo-grid td.bold { font-weight: 700; }
+.demo-grid td.italic { font-style: italic; }

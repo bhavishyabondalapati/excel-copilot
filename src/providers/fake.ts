@@ -6,7 +6,7 @@ import type { CompletionRequest, LLMProvider } from "./types";
 type Reply = string | ((request: CompletionRequest) => string) | Error;
 
 export class FakeProvider implements LLMProvider {
-  readonly name = "fake";
+  name = "fake";
   readonly requests: CompletionRequest[] = [];
   private queue: Reply[];
 
