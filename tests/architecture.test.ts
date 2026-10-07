@@ -15,7 +15,8 @@ describe("src/core purity", () => {
       const allowed = spec.startsWith("./") || spec === "zod" || spec === "../providers/types";
       expect(allowed, `${file} imports "${spec}"`).toBe(true);
     }
-    expect(src).not.toMatch(/\b(Excel|Office)\.\w/);
-    expect(src).not.toMatch(/\b(document|window|localStorage)\./);
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, ""); // ignore comments
+    expect(code).not.toMatch(/\b(Excel|Office)\.\w/);
+    expect(code).not.toMatch(/\b(document|window|localStorage)\./);
   });
 });
