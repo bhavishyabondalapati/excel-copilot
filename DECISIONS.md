@@ -51,3 +51,23 @@ Newest entries go at the bottom of each section.
   self-reference warnings; documented as best-effort.
 - **Default limits:** 2,000 cells per action, 10,000 total, 25 actions.
 - **Whole-column refs like `A:A` are rejected** (1M+ cells, can't preview).
+
+## Planner, preview and undo
+
+- **Planner is a pure function of (actions, snapshot).** The caller reads the
+  cells first; the planner simulates every action on a copy and diffs the result.
+  No Excel needed to test preview or undo.
+- **Formulas are not evaluated in the preview.** The "after" column shows the
+  formula text; Excel calculates the value once applied. Writing a formula
+  evaluator would be a big project of its own.
+- **Unchanged cells are left out of the diff** (writing "Item" over "Item").
+- **Undo restores whole touched ranges, content *and* format, every time.** Even
+  a content-only action can change formatting (Excel auto-formats typed dates),
+  so restoring both is more correct and still cheap. Formats go first so a text
+  number format ("@") is back in place before contents are rewritten.
+- **Drift detection before undo.** If the user edited a cell after applying, undo
+  would silently overwrite that edit. `detectDrift` lists such cells so the UI can
+  warn first.
+- **`WorkbookGateway` interface ("ports and adapters").** The core only knows this
+  interface. `MemoryWorkbook` implements it for tests and the browser demo; the
+  Office.js adapter implements it for real Excel.
