@@ -116,3 +116,52 @@ Newest entries go at the bottom of each section.
   line of defence.
 - **"Explain this formula" reuses the same pipeline** with a fixed request and
   only keeps the `explain` actions, so it can never edit the sheet.
+
+## Excel adapter
+
+- **ExcelApi 1.9 minimum** (declared in the manifest) for
+  `getCellProperties`/`setCellProperties`, which read and restore per-cell
+  formats in one call. Excel for Mac (Microsoft 365) supports it.
+- **Writes go through `range.formulas`**, which accepts formulas and constants
+  alike; `""` clears a cell. All ops in a plan are queued and sent with a single
+  `context.sync()`.
+- **"No fill" is restored with `format.fill.clear()`** per cell, because it can't
+  be expressed as a colour in `setCellProperties`.
+- **Context sent to the LLM is capped at 30 rows × 15 columns** of the used range
+  (plus the selection), with a "truncated" note, to keep prompts small.
+- **The adapter has no unit tests.** It needs a running Excel. It is kept thin on
+  purpose (it only moves data) so the tested core holds the logic. Verify in Excel
+  after sideloading.
+
+## UI
+
+- **Plain React + CSS, no Fluent UI.** Fewer dependencies and easier to read while
+  learning; colours follow Excel's green and support dark mode.
+- **Browser demo mode.** When `Office.onReady` reports no Excel host, the app uses
+  `MemoryWorkbook` with sample data, a mini grid, and a keyword-based demo
+  provider. This makes the UI testable in a normal browser and in jsdom.
+- **Undo is last-in-first-out only.** Undoing an older change while a newer one
+  overlaps it would restore inconsistent data, so only the newest entry has an
+  Undo button.
+- **Undo history is in memory.** It is lost when the pane closes. Persisting it
+  (e.g. in document settings) is a possible extension.
+- **Manifest version is 1.0.0.0**: the validator rejects versions below 1.0.
+
+## Project conventions
+
+- **No `requirements.txt` / `.env.example`.** This is a Node project:
+  `package.json` + `package-lock.json` play the role of `requirements.txt`. No
+  `.env` is used because API keys are entered in the Settings panel at runtime,
+  never written to files. `.gitignore` still excludes `.env` files defensively.
+- **`npm run check`** (typecheck + tests) exists because a piped test command once
+  hid a failing exit code from a commit; the next commit fixed it.
+
+## Verification done while building
+
+- `npm run check`: typecheck clean, 101 tests passing.
+- `vite build` succeeds.
+- `office-addin-manifest validate manifest.xml`: "The manifest is valid."
+- Demo mode clicked through in a browser: preview → apply → explain → undo ×2
+  restored the sheet; missing-key warning shows for Anthropic.
+- **Not done:** loading the add-in inside real Excel, and live calls to the Claude
+  or Gemini APIs (no Excel automation or API keys available to the agent).

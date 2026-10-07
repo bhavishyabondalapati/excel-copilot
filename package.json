@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check": "tsc --noEmit -p tsconfig.json && vitest run",
     "certs": "office-addin-dev-certs install",
     "validate-manifest": "office-addin-manifest validate manifest.xml",
     "sideload": "office-addin-debugging start manifest.xml desktop --app excel --dev-server \"npm run dev\" --dev-server-port 3000 --no-debug",
