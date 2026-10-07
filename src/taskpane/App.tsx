@@ -84,6 +84,7 @@ export function App({ workbook, demoWorkbook }: AppProps) {
         const applied = await copilot.apply(proposal);
         setHistory((h) => [applied, ...h]);
         setProposal(null);
+        setExplanation(null);
         setRequest("");
       } catch (e) {
         if (e instanceof StalePreviewError) setProposal(null);
@@ -104,6 +105,7 @@ export function App({ workbook, demoWorkbook }: AppProps) {
       }
       await copilot.undo(latest);
       setHistory((h) => h.slice(1));
+      setExplanation(null);
       setDrift(null);
     });
 

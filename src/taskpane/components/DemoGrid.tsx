@@ -1,6 +1,7 @@
 import { colToLetters, formatCell } from "../../core/a1";
 import { displayContent } from "../../core/cells";
 import type { MemoryWorkbook } from "../../core/memoryWorkbook";
+import type { CellFormat } from "../../core/types";
 
 /** A tiny read-only spreadsheet view, shown only in browser demo mode. */
 export function DemoGrid({ workbook, pending, onSelect }: {
@@ -40,7 +41,7 @@ export function DemoGrid({ workbook, pending, onSelect }: {
                 ].join(" ");
                 return (
                   <td key={c} className={cls} title={cell.formula ?? undefined}
-                    style={{ background: cell.format.fillColor ?? undefined, color: cell.format.fontColor !== "#000000" ? cell.format.fontColor : undefined }}
+                    style={cellStyle(cell.format)}
                     onClick={() => onSelect(addr)}>
                     {displayContent(cell)}
                   </td>
@@ -52,4 +53,14 @@ export function DemoGrid({ workbook, pending, onSelect }: {
       </table>
     </div>
   );
+}
+
+/**
+ * Unfilled cells keep the theme's text colour (so dark mode stays readable);
+ * filled cells use the real font colour, like Excel does.
+ */
+function cellStyle(f: CellFormat): React.CSSProperties | undefined {
+  if (f.fillColor) return { background: f.fillColor, color: f.fontColor };
+  if (f.fontColor.toUpperCase() !== "#000000") return { color: f.fontColor };
+  return undefined;
 }
