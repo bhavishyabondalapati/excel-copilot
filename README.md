@@ -148,7 +148,7 @@ excel-copilot/
     ├── formula.test.ts        Formula scanner: blocked functions, strings, DDE, external links
     ├── schema.test.ts         Schema accepts/rejects; JSON Schema is provider-friendly
     ├── validator.test.ts      Every validation rule
-    ├── planner.test.ts        Diffs, templates, apply -> undo round trip, drift
+    ├── planner.test.ts        Diffs, templates, apply -> undo round trip
     ├── prompt.test.ts         Exactly what text the LLM sees
     ├── copilot.test.ts        End-to-end flow with FakeProvider + MemoryWorkbook (repair, stale, drift)
     ├── providers.test.ts      Anthropic + Gemini request/response/error mapping with stubbed fetch
