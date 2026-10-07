@@ -4,7 +4,25 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { App } from "../src/taskpane/App";
 import { createDemoWorkbook } from "../src/demo/demoData";
 
-afterEach(cleanup);
+const SETTINGS_KEY = "excel-copilot.settings.v1";
+
+// Gemini is the default provider; these tests pick Demo so no key or network is needed.
+beforeEach(() => localStorage.setItem(SETTINGS_KEY, JSON.stringify({ provider: "demo" })));
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
+
+describe("App defaults", () => {
+  it("uses Gemini and asks for a key until one is saved", () => {
+    localStorage.clear();
+    const wb = createDemoWorkbook();
+    render(<App workbook={wb} demoWorkbook={wb} />);
+    expect(screen.getByText(/Gemini · gemini-/)).toBeTruthy();
+    expect(screen.getByText("Add a Gemini API key in Settings.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Preview changes" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
 
 async function click(name: string | RegExp) {
   await act(async () => {

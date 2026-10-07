@@ -21,7 +21,9 @@ describe("settings", () => {
   });
 
   it("explains what is missing", () => {
-    expect(settingsProblem(DEFAULT_SETTINGS)).toBeNull(); // demo needs nothing
+    expect(DEFAULT_SETTINGS.provider).toBe("gemini");
+    expect(settingsProblem(DEFAULT_SETTINGS)).toContain("Gemini API key"); // default needs a key
+    expect(settingsProblem({ ...DEFAULT_SETTINGS, provider: "demo" })).toBeNull(); // demo needs nothing
     expect(settingsProblem({ ...DEFAULT_SETTINGS, provider: "anthropic" })).toContain("Anthropic API key");
     expect(settingsProblem({ ...DEFAULT_SETTINGS, provider: "gemini", geminiKey: "  " })).toContain("Gemini");
   });

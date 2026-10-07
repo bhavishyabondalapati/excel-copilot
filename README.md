@@ -200,7 +200,9 @@ them from <https://console.anthropic.com> or <https://aistudio.google.com/apikey
 npm run dev
 ```
 
-Open <http://localhost:3000>. You'll see a demo sales sheet. Click a suggestion
+Open <http://localhost:3000>. You'll see a demo sales sheet. Gemini is the
+default provider, so either add a Gemini key in **Settings** or choose
+**Demo (no key, canned answers)** there. In Demo, click a suggestion
 chip (e.g. "Fill in the Revenue column"), then **Preview changes → Apply → Undo**.
 Click a formula cell and press **Explain selected formula**.
 
@@ -249,8 +251,8 @@ Then quit and reopen Excel, open any workbook, and go to **Home → Add-ins**
 (or **Insert → Add-ins → My Add-ins**). Look under **Developer Add-ins** and pick
 **Excel Copilot**. A **Copilot** button also appears on the Home tab.
 
-In the pane: **Settings** → choose *Anthropic Claude* or *Google Gemini* → paste
-your key → **Save**.
+In the pane: **Settings** → *Google Gemini* is selected by default (switch to
+*Anthropic Claude* if you prefer) → paste your key → **Save**.
 
 To remove it again:
 

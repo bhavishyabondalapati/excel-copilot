@@ -15,7 +15,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  provider: "demo",
+  provider: "gemini",
   anthropicKey: "",
   anthropicModel: DEFAULT_ANTHROPIC_MODEL,
   geminiKey: "",

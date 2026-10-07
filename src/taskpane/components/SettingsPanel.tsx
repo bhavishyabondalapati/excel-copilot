@@ -2,9 +2,9 @@ import { useState } from "react";
 import type { ProviderId, Settings } from "../settings";
 
 const PROVIDERS: { id: ProviderId; label: string }[] = [
-  { id: "demo", label: "Demo (no key, canned answers)" },
+  { id: "gemini", label: "Google Gemini (default)" },
   { id: "anthropic", label: "Anthropic Claude" },
-  { id: "gemini", label: "Google Gemini" },
+  { id: "demo", label: "Demo (no key, canned answers)" },
 ];
 
 export function SettingsPanel({ settings, onSave, onClose }: {

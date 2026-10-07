@@ -151,6 +151,11 @@ Newest entries go at the bottom of each section.
   (e.g. in document settings) is a possible extension.
 - **Manifest version is 1.0.0.0**: the validator rejects versions below 1.0.
 
+- **Gemini is the default provider** (changed at the user's request). Claude and
+  Demo stay selectable in Settings. Until a Gemini key is saved, the pane shows
+  "Add a Gemini API key" and disables Preview, so trying the browser demo now
+  means picking *Demo* in Settings first. The UI tests pick Demo explicitly.
+
 ## Project conventions
 
 - **No `requirements.txt` / `.env.example`.** This is a Node project:
