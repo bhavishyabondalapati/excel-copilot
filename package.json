@@ -1,0 +1,40 @@
+{
+  "name": "excel-copilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Excel task-pane add-in: natural-language requests -> validated, previewable, undoable spreadsheet actions.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "certs": "office-addin-dev-certs install",
+    "validate-manifest": "office-addin-manifest validate manifest.xml",
+    "sideload": "office-addin-debugging start manifest.xml desktop --app excel --no-debug",
+    "unsideload": "office-addin-debugging stop manifest.xml",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.4",
+    "@types/office-js": "^1.0.611",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "^29.1.1",
+    "office-addin-debugging": "^7.0.1",
+    "office-addin-dev-certs": "^3.0.1",
+    "office-addin-manifest": "^3.0.1",
+    "typescript": "~5.9",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
+  }
+}

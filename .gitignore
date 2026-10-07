@@ -1,0 +1,16 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# deps / build
+node_modules/
+dist/
+coverage/
+venv/
+__pycache__/
+
+# OS / editor
+.DS_Store
+*.log
+.vscode/
