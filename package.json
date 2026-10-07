@@ -12,8 +12,8 @@
     "test:watch": "vitest",
     "certs": "office-addin-dev-certs install",
     "validate-manifest": "office-addin-manifest validate manifest.xml",
-    "sideload": "office-addin-debugging start manifest.xml desktop --app excel --no-debug",
-    "unsideload": "office-addin-debugging stop manifest.xml",
+    "sideload": "office-addin-debugging start manifest.xml desktop --app excel --dev-server \"npm run dev\" --dev-server-port 3000 --no-debug",
+    "unsideload": "office-addin-debugging stop manifest.xml desktop",
     "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
