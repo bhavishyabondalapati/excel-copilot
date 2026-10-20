@@ -1,35 +1,21 @@
 # Excel Copilot
 
-An Excel add-in that lives in a side panel (a "task pane"). You type a request
-like *"add a Revenue column = Units × Price and bold the header"*. An LLM (Claude
-or Gemini) replies with **structured JSON actions**. The add-in **validates** every
-action, shows a **preview diff** of the cells that will change, applies them only
-when you click **Apply**, and keeps a **snapshot** so you can **undo** in one click.
-It can also **explain the formula** in the selected cell in plain English.
+An Excel task-pane add-in that turns natural-language requests into validated, previewable, and reversible spreadsheet edits. Requests such as *"add a Revenue column = Units × Price and bold the header"* are sent to Claude or Gemini, which return structured JSON actions; the add-in validates them, shows a cell-level diff, applies them only on confirmation, and supports one-click undo. It can also explain the formula in the selected cell.
 
-The core logic (schema, validator, planner, undo) is plain TypeScript with no
-Excel dependency, so all of it is unit-tested with Vitest, and the whole UI also
-runs in an ordinary browser tab against a fake in-memory workbook.
+The core logic (schema, validator, planner, undo) is plain TypeScript with no Excel dependency, so it is fully unit-tested and the whole UI also runs in a browser against an in-memory workbook.
 
----
+## Features
 
-## Tools and libraries (and why)
+- **Structured actions**: `write_formula`, `fill_range` (values or a per-row formula template), `format`, and `explain`, defined by a Zod schema that also generates the JSON Schema sent to the model.
+- **Two-layer validation**: shape (types, required and extra keys) and meaning (sheets and addresses exist, array dimensions match the range, formulas are balanced, size limits, no `WEBSERVICE`, DDE, or external links).
+- **Repair loop**: on validation failure, the model receives its reply and the list of issues for one retry; if that also fails, nothing is applied.
+- **Preview diff**: before/after values for every cell that will change.
+- **Undo with safety checks**: refuses to apply a stale preview, and warns before undo would overwrite cells edited after applying.
+- **Formula explanation** for the selected cell.
+- **Browser demo mode** with a sample workbook and a keyword-based demo provider that needs no API key.
+- **Providers**: Google Gemini (default, `gemini-3.8-flash`) and Anthropic Claude (`claude-opus-5-5`), both using structured-output mode.
 
-| Tool | Why |
-|---|---|
-| **TypeScript** | Types catch mistakes in data shapes (cells, actions, plans) at compile time. |
-| **Office.js** (`@types/office-js`) | Microsoft's JavaScript API for reading and writing Excel from an add-in. Loaded from Microsoft's CDN, as required. |
-| **React 19** | Builds the task-pane UI out of small components with simple state. |
-| **Zod** | Defines the action schema once and gives us *both* runtime validation and TypeScript types, plus a generated JSON Schema for the LLM. |
-| **@anthropic-ai/sdk** | Official Claude SDK: typed requests, typed errors, retries, structured output. |
-| **fetch** (for Gemini) | Gemini's `generateContent` is a single REST call; no SDK needed and easy to stub in tests. |
-| **Vite** | Dev server + bundler with almost no config; serves the task pane over HTTPS on port 3000. |
-| **Vitest** + **Testing Library** + **jsdom** | Fast tests that share Vite's config; Testing Library drives the React UI like a user would. |
-| **office-addin-dev-certs / -debugging / -manifest** | Microsoft's CLI helpers: trusted localhost HTTPS cert, sideloading into Excel, manifest validation. |
-
----
-
-## Architecture (read this first)
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -42,40 +28,21 @@ flowchart LR
   G --> M["MemoryWorkbook<br/>(tests + browser demo)"]
 ```
 
-A request flows through five steps:
+Request flow:
 
-1. **Context.** The gateway reads sheet names, the selection and the top of the
-   used range. `prompt.ts` turns that into text, wrapped in `<workbook>` tags
-   and marked as *data, not instructions*.
-2. **LLM.** The provider sends the system prompt, the message and the JSON Schema
-   (generated from Zod). Both providers use their "structured output" mode.
-3. **Validate.** `validator.ts` checks the reply in two layers:
-   *shape* (Zod: right keys and types, no extra keys) and *meaning* (addresses
-   exist, sheet exists, a 2×3 range gets a 2×3 array, formulas balance, no
-   `WEBSERVICE`/DDE/external links, size limits). If anything fails, the model
-   sees its reply plus the problem list and gets **one repair attempt**. If that
-   fails too, nothing is applied. It's all-or-nothing.
-4. **Plan + preview.** The gateway reads the target cells (the *snapshot*).
-   `planner.ts` simulates the actions on a copy and produces the **diff** (which
-   cells change, before → after) and the low-level **ops** (`setContents`,
-   `setStyle`). The UI shows the diff.
-5. **Apply / undo.** On Apply, the cells are read *again*: if they changed since
-   the preview, the add-in refuses ("stale preview"). Otherwise that fresh read
-   becomes the **undo snapshot**, and the ops are written in one batch. Right after writing, the cells are read once more. Undo compares the
-   sheet with that read to find **drift** (cells you edited after applying) and
-   warns before overwriting them.
+1. **Context.** The gateway reads sheet names, the selection, and the top of the used range. `prompt.ts` renders it inside `<workbook>` tags, marked as data rather than instructions.
+2. **LLM.** The provider sends the system prompt, the user message, and the generated JSON Schema.
+3. **Validate.** `validator.ts` returns a list of issues instead of throwing. Any error triggers the single repair attempt; application is all-or-nothing.
+4. **Plan and preview.** The gateway reads the target cells (the snapshot). `planner.ts` simulates the actions on a copy and produces the diff and low-level write operations (`setContents`, `setStyle`).
+5. **Apply and undo.** On Apply, the target cells are re-read; if they changed since the preview, the apply is refused. Otherwise that read becomes the undo snapshot and all operations are written in one batch. The cells are read again after writing, and undo compares against that read to detect later edits (drift) before restoring.
 
-Three design ideas hold this together:
+Structure:
 
-- **Ports and adapters.** The core only knows the `WorkbookGateway` interface.
-  `ExcelGateway` adapts it to Office.js; `MemoryWorkbook` adapts it to a JS object.
-  So the core runs in tests and in a browser without Excel.
-- **Strategy pattern for LLMs.** `LLMProvider` has one method, `complete()`. Claude,
-  Gemini and the fake are interchangeable.
-- **Pure planner.** `buildPlan(actions, snapshot)` is a pure function: same input,
-  same output, no side effects. That's why preview and undo are easy to test.
+- **Ports and adapters.** The core depends only on the `WorkbookGateway` interface. `ExcelGateway` implements it with Office.js; `MemoryWorkbook` implements it with a plain object. `architecture.test.ts` fails if `src/core` imports Excel, React, or the DOM.
+- **Interchangeable providers.** `LLMProvider` has one method, `complete()`; Claude, Gemini, and a scripted fake share it.
+- **Pure planner.** `buildPlan(actions, snapshot)` has no side effects, so preview and undo are deterministic and directly testable.
 
-### The action schema
+### Action schema
 
 ```jsonc
 {
@@ -90,249 +57,160 @@ Three design ideas hold this together:
 }
 ```
 
----
+### Tech stack
 
-## File structure
+| Component | Role |
+|---|---|
+| TypeScript (strict) | Compile-time checking of cell, action, and plan shapes |
+| Office.js | Excel read/write API, loaded from Microsoft's CDN |
+| React 19 | Task-pane UI |
+| Zod | Single source for runtime validation, TypeScript types, and the LLM JSON Schema |
+| `@anthropic-ai/sdk` | Claude requests, typed errors, retries, structured output |
+| `fetch` | Gemini `generateContent` REST calls |
+| Vite | Dev server (HTTPS on port 3000) and bundler |
+| Vitest, Testing Library, jsdom | Unit and UI tests |
+| office-addin-dev-certs, -debugging, -manifest | Localhost HTTPS certificate, sideloading, manifest validation |
 
-```
-excel-copilot/
-├── manifest.xml               Add-in manifest: name, icons, task-pane URL, ribbon button, ExcelApi 1.9 requirement
-├── package.json               Dependencies and npm scripts (dev, build, test, check, sideload…)
-├── package-lock.json          Exact dependency versions
-├── tsconfig.json              TypeScript compiler settings (strict mode)
-├── vite.config.ts             Dev server (HTTPS on :3000 when certs exist), build output, Vitest config
-├── DECISIONS.md               Log of design choices and why they were made
-├── README.md                  This file
-├── .gitignore                 Keeps node_modules, dist, .env, .DS_Store etc. out of git
-├── .claude/launch.json        Dev-server config for Claude Code's preview browser
-├── assets/icon-*.png          Add-in icons (16–128 px), generated by scripts/make-icons.mjs
-├── scripts/
-│   └── make-icons.mjs         Draws the PNG icons with plain Node (no image libraries)
-├── src/
-│   ├── core/                  Pure TypeScript: no Excel, no React, no network
-│   │   ├── a1.ts              Parse/format A1 addresses ("Sheet1!B2:C5"), range helpers
-│   │   ├── schema.ts          Zod schema for LLM actions + generated JSON Schema
-│   │   ├── formula.ts         Lightweight formula scanner: brackets, blocked functions, references
-│   │   ├── validator.ts       Two-layer validation (shape + meaning) returning a list of issues
-│   │   ├── types.ts           Shared data types: CellState, Snapshot, WorkbookContext, WriteOp
-│   │   ├── cells.ts           Compare/display cell content and formats
-│   │   ├── planner.ts         Simulate actions -> diff, write ops, undo ops, snapshot comparison
-│   │   ├── prompt.ts          System prompt and rendering the workbook context as text
-│   │   ├── gateway.ts         The WorkbookGateway interface (the "port")
-│   │   ├── memoryWorkbook.ts  In-memory workbook implementing the gateway (tests + demo)
-│   │   └── copilot.ts         Orchestrator: propose (with repair), apply, undo, explain
-│   ├── providers/
-│   │   ├── types.ts           LLMProvider interface and ProviderError
-│   │   ├── anthropic.ts       Claude via the official SDK, structured output + refusal fallback
-│   │   ├── gemini.ts          Gemini via REST generateContent with responseJsonSchema
-│   │   └── fake.ts            Scripted provider for tests
-│   ├── excel/
-│   │   └── excelGateway.ts    The Office.js adapter: reads/writes real Excel cells and formats
-│   ├── demo/
-│   │   ├── demoData.ts        Sample sales workbook for browser demo mode
-│   │   └── demoProvider.ts    Keyword-based fake "LLM" so the demo works with no API key
-│   └── taskpane/
-│       ├── index.html         Task-pane page; loads office.js from Microsoft's CDN
-│       ├── main.tsx           Entry point: picks Excel or demo mode
-│       ├── App.tsx            Main UI and the propose -> preview -> apply -> undo flow
-│       ├── settings.ts        Provider/model/API-key settings saved in localStorage
-│       ├── providerFactory.ts Builds the right LLMProvider from settings
-│       ├── styles.css         Task-pane styles (light + dark)
-│       └── components/
-│           ├── PreviewTable.tsx  The diff table (cell, before, after)
-│           ├── IssueList.tsx     Validation errors and warnings
-│           ├── SettingsPanel.tsx Provider picker and API-key inputs
-│           └── DemoGrid.tsx      Mini spreadsheet shown only in browser demo mode
-└── tests/
-    ├── a1.test.ts             Address parsing edge cases
-    ├── formula.test.ts        Formula scanner: blocked functions, strings, DDE, external links
-    ├── schema.test.ts         Schema accepts/rejects; JSON Schema is provider-friendly
-    ├── validator.test.ts      Every validation rule
-    ├── planner.test.ts        Diffs, templates, apply -> undo round trip
-    ├── prompt.test.ts         Exactly what text the LLM sees
-    ├── copilot.test.ts        End-to-end flow with FakeProvider + MemoryWorkbook (repair, stale, drift)
-    ├── providers.test.ts      Anthropic + Gemini request/response/error mapping with stubbed fetch
-    ├── settings.test.ts       Settings load/save and missing-key messages
-    ├── architecture.test.ts   Fails if src/core ever imports Excel, React or the DOM
-    └── app.test.tsx           Drives the React UI in jsdom: preview, apply, undo, explain
-```
+## Quickstart
 
----
-
-## Setup
-
-You need **Node.js 20+** (22 recommended) and, for the Excel part, **Excel for Mac**
-(Microsoft 365, version 16.x).
-
-This is a JavaScript project, so dependencies live in `node_modules/` inside the
-folder (already isolated per project). If you want Node itself in a conda
-environment instead of a system install:
+Requires Node.js 20+ (22 recommended). Excel integration requires Excel for Mac (Microsoft 365, 16.x).
 
 ```bash
-conda create -n excel-copilot -c conda-forge nodejs=22 -y
-```
-
-```bash
+conda create -n excel-copilot -c conda-forge nodejs=22 -y   # optional: Node in a conda env
 conda activate excel-copilot
-```
-
-Then, from the project folder:
-
-```bash
-cd ~/projects/excel-copilot
-```
-
-```bash
 npm install
 ```
 
-API keys are **not** put in any file. You paste them into the add-in's
-**Settings** panel; they are stored in that browser's localStorage only. Get
-them from <https://console.anthropic.com> or <https://aistudio.google.com/apikey>.
+API keys are not stored in any file. They are entered in the add-in's **Settings** panel and kept in that browser's localStorage. Keys are available from <https://aistudio.google.com/apikey> and <https://console.anthropic.com>.
 
----
-
-## How to run
-
-### 1. Try it in a browser (no Excel, no key)
+### Browser demo (no Excel, no key)
 
 ```bash
 npm run dev
 ```
 
-Open <http://localhost:3000>. You'll see a demo sales sheet. Gemini is the
-default provider, so either add a Gemini key in **Settings** or choose
-**Demo (no key, canned answers)** there. In Demo, click a suggestion
-chip (e.g. "Fill in the Revenue column"), then **Preview changes → Apply → Undo**.
-Click a formula cell and press **Explain selected formula**.
+Open <http://localhost:3000>. In **Settings**, either add a Gemini key or select **Demo (no key, canned answers)**. Click a suggestion (e.g. "Fill in the Revenue column"), then **Preview changes → Apply → Undo**. Select a formula cell and click **Explain selected formula**.
 
-### 2. Run the tests
+### Sideload into Excel for Mac
 
-```bash
-npm test
-```
-
-Typecheck and tests together:
-
-```bash
-npm run check
-```
-
-### 3. Sideload into Excel for Mac
-
-Office only loads add-ins over HTTPS, so first install a trusted localhost
-certificate (one-time; it asks for your Mac password because it adds a
-development root certificate to your keychain):
+Office loads add-ins only over HTTPS. Install a trusted localhost certificate once (prompts for the macOS password to add a development root certificate):
 
 ```bash
 npm run certs
 ```
 
-**Option A, automatic.** This starts the dev server, copies the manifest into
-Excel's sideload folder and opens Excel:
+Start the dev server, copy the manifest into Excel's sideload folder, and open Excel:
 
 ```bash
 npm run sideload
 ```
 
-**Option B, manual.** Start the dev server:
-
-```bash
-npm run dev
-```
-
-In a second terminal, copy the manifest into Excel's developer add-in folder:
+Alternatively, run `npm run dev` and copy the manifest manually:
 
 ```bash
 mkdir -p ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef && cp manifest.xml ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/
 ```
 
-Then quit and reopen Excel, open any workbook, and go to **Home → Add-ins**
-(or **Insert → Add-ins → My Add-ins**). Look under **Developer Add-ins** and pick
-**Excel Copilot**. A **Copilot** button also appears on the Home tab.
+Restart Excel, open a workbook, and choose **Home → Add-ins** (or **Insert → Add-ins → My Add-ins**) → **Developer Add-ins** → **Excel Copilot**. A **Copilot** button is also added to the Home tab. In the pane, open **Settings**, choose a provider, paste a key, and click **Save**.
 
-In the pane: **Settings** → *Google Gemini* is selected by default (switch to
-*Anthropic Claude* if you prefer) → paste your key → **Save**.
-
-To remove it again:
+Remove the add-in:
 
 ```bash
 npm run unsideload
 ```
 
-(or delete `manifest.xml` from the `wef` folder above).
+Troubleshooting:
 
-**Debugging tips:** in the task pane, right-click → **Inspect Element** opens
-Safari Web Inspector. If it isn't offered, run
-`defaults write com.microsoft.Excel OfficeWebAddinDeveloperExtras -bool true`
-in Terminal and restart Excel. If the pane is blank, check that
-<https://localhost:3000> opens in Safari without a certificate warning.
+- Right-click in the task pane → **Inspect Element** opens Safari Web Inspector. If the option is missing, run `defaults write com.microsoft.Excel OfficeWebAddinDeveloperExtras -bool true` and restart Excel.
+- A blank pane usually means <https://localhost:3000> does not load in Safari without a certificate warning.
 
-Validate the manifest (this sends it to Microsoft's validation service):
+Validate the manifest (sends it to Microsoft's validation service):
 
 ```bash
 npm run validate-manifest
 ```
 
----
+## Running tests
 
-## How it was built (in order)
+```bash
+npm test            # 120 tests across 11 files
+npm run check       # typecheck + tests
+```
 
-1. **Scaffold**: git, `.gitignore`, `package.json`, strict `tsconfig`, Vite + Vitest config.
-2. **A1 helpers** (`a1.ts`): turn `"Sheet1!B2:C5"` into numbers and back; tested first because everything depends on it.
-3. **Schema** (`schema.ts`): Zod definitions for the four actions; JSON Schema generated from it.
-4. **Formula scanner + validator**: shape checks via Zod, then meaning checks, returning issues instead of throwing.
-5. **Planner + MemoryWorkbook**: simulate actions → diff → ops → undo ops; round-trip test proves undo restores the sheet exactly.
-6. **Providers + prompt + orchestrator**: provider interface, Claude (SDK) and Gemini (REST) adapters tested with stubbed `fetch`; the `Copilot` class adds the repair loop, stale-preview refusal and drift check.
-7. **Office.js adapter** (`excelGateway.ts`): reads values/formulas/formats with `getCellProperties`, writes in one batch, restores formats with `setCellProperties`.
-8. **React task pane + demo mode**: preview table, apply/undo history, settings, explain; demo workbook and keyword provider so it runs in a browser.
-9. **Manifest + icons**: validated with `office-addin-manifest`.
-10. **Browser check + UI tests**: clicked through the demo flow (found and fixed unreadable text on filled cells in dark mode), added Testing Library tests and an architecture test.
+| File | Coverage |
+|---|---|
+| `a1.test.ts` | A1 address parsing edge cases |
+| `formula.test.ts` | Blocked functions, strings, DDE, external links |
+| `schema.test.ts` | Schema acceptance/rejection; provider-compatible JSON Schema |
+| `validator.test.ts` | Every validation rule |
+| `planner.test.ts` | Diffs, templates, apply → undo round trip |
+| `prompt.test.ts` | Exact text sent to the LLM |
+| `copilot.test.ts` | End-to-end flow with the fake provider and in-memory workbook: repair, stale preview, drift |
+| `providers.test.ts` | Anthropic and Gemini request, response, and error mapping with stubbed `fetch` |
+| `settings.test.ts` | Settings persistence and missing-key messages |
+| `architecture.test.ts` | `src/core` has no Excel, React, or DOM imports |
+| `app.test.tsx` | React UI in jsdom: preview, apply, undo, explain |
 
-Every step was a separate commit; see `git log` and `DECISIONS.md`.
+## Project structure
 
----
+```
+excel-copilot/
+├── manifest.xml               Add-in manifest: icons, task-pane URL, ribbon button, ExcelApi 1.9 requirement
+├── package.json               Dependencies and npm scripts
+├── tsconfig.json              Strict TypeScript settings
+├── vite.config.ts             Dev server (HTTPS when certs exist), build, Vitest config
+├── DECISIONS.md               Design decision log
+├── assets/icon-*.png          Add-in icons (16–128 px)
+├── scripts/make-icons.mjs     Generates the PNG icons with plain Node
+├── src/
+│   ├── core/                  Pure TypeScript: no Excel, React, or network
+│   │   ├── a1.ts              A1 address parsing/formatting and range helpers
+│   │   ├── schema.ts          Zod action schema and generated JSON Schema
+│   │   ├── formula.ts         Formula scanner: brackets, blocked functions, references
+│   │   ├── validator.ts       Shape and meaning validation
+│   │   ├── types.ts           CellState, Snapshot, WorkbookContext, WriteOp
+│   │   ├── cells.ts           Cell content and format comparison/display
+│   │   ├── planner.ts         Actions → diff, write ops, undo ops; snapshot comparison
+│   │   ├── prompt.ts          System prompt and workbook context rendering
+│   │   ├── gateway.ts         WorkbookGateway interface
+│   │   ├── memoryWorkbook.ts  In-memory gateway implementation
+│   │   └── copilot.ts         Orchestrator: propose (with repair), apply, undo, explain
+│   ├── providers/
+│   │   ├── types.ts           LLMProvider interface and ProviderError
+│   │   ├── anthropic.ts       Claude via the SDK; structured output with refusal fallback
+│   │   ├── gemini.ts          Gemini via REST with responseJsonSchema
+│   │   └── fake.ts            Scripted provider for tests
+│   ├── excel/excelGateway.ts  Office.js adapter
+│   ├── demo/
+│   │   ├── demoData.ts        Sample sales workbook
+│   │   └── demoProvider.ts    Keyword-based demo provider
+│   └── taskpane/
+│       ├── index.html         Task-pane page; loads office.js from Microsoft's CDN
+│       ├── main.tsx           Entry point: Excel or demo mode
+│       ├── App.tsx            Propose → preview → apply → undo UI
+│       ├── settings.ts        Provider, model, and key settings (localStorage)
+│       ├── providerFactory.ts Builds the configured LLMProvider
+│       ├── styles.css         Light and dark styles
+│       └── components/        PreviewTable, IssueList, SettingsPanel, DemoGrid
+└── tests/                     Vitest suite (see Running tests)
+```
 
-## Key concepts (what to understand for an interview)
+## Design decisions
 
-- **Structured output from LLMs.** Never trust free text. Ask for JSON matching a
-  schema (the provider's structured-output mode), then **validate anyway**, because
-  a schema can't express "a 2×3 range needs a 2×3 array".
-- **Validate → preview → apply → undo.** LLM actions are *proposals*. A human sees a
-  diff before anything changes, and every change is reversible. This is the core
-  safety pattern for AI agents that act on real data.
-- **Repair loop.** Feeding validation errors back to the model ("here's what was
-  wrong, try again") fixes most mistakes for the cost of one extra call. Bound it
-  (here: 1 retry) so it can't loop forever.
-- **Prompt injection via data.** Cell contents are untrusted input. We mark them as
-  data in the prompt *and* block dangerous functions (`WEBSERVICE` could send your
-  data to a URL), so a malicious cell can't make the model exfiltrate data.
-- **Ports and adapters / dependency inversion.** The core depends on an interface
-  (`WorkbookGateway`), not on Excel. That's what makes it testable and lets the
-  same UI run in a browser demo.
-- **Strategy pattern.** `LLMProvider` lets Claude, Gemini and a fake be swapped
-  without touching the rest of the code; the fake makes tests fast, free and
-  deterministic.
-- **Pure functions.** `buildPlan(actions, snapshot)` has no side effects, so it's
-  trivially testable. Side effects live at the edges (gateway, provider).
-- **Snapshots and optimistic concurrency.** We snapshot before writing (undo), re-read
-  before applying (stale-preview check) and compare before undoing (drift). The same
-  idea as version checks in databases.
-- **Office.js batching.** `load()` and property writes are *queued* on proxy objects;
-  `context.sync()` sends the batch. Fewer syncs mean a faster add-in.
-- **Discriminated unions.** `type: "write_formula" | "fill_range" | …` lets
-  TypeScript narrow each action in a `switch` and catch missing cases.
+See [DECISIONS.md](DECISIONS.md) for the full log. Highlights:
 
----
+- **Validate even with structured output.** A JSON Schema cannot express constraints such as "a 2×3 range needs a 2×3 array", so semantic validation runs on every reply.
+- **Bounded repair.** One retry with the validation errors fixes most mistakes without risking a loop.
+- **Cell contents are untrusted.** Workbook data is delimited as data in the prompt, and functions that can send data to a URL (`WEBSERVICE`), DDE, and external links are blocked.
+- **Optimistic concurrency.** Snapshot before writing (undo), re-read before applying (stale preview), and compare before undoing (drift).
+- **Batched Office.js access.** Reads use `getCellProperties` and writes are queued and sent with a single `context.sync()`; formats are restored with `setCellProperties`.
+- **Discriminated union for actions**, so TypeScript narrows each action type and flags unhandled cases.
+- **No SDK for Gemini.** `generateContent` is a single REST call, which is simple to stub in tests.
 
-## Limitations
+## Limitations and future work
 
-- Formulas aren't evaluated in the preview; you see the formula text, and Excel
-  calculates after Apply.
+- Formulas are not evaluated in the preview; Excel calculates them after Apply.
 - The formula scanner is a best-effort lexer, not a full Excel parser.
-- Undo covers changes made through this add-in during the current session (history
-  lives in memory; closing the pane clears it).
-- The real Claude and Gemini calls were written against the documented APIs and
-  tested with stubbed responses; run one real request after adding your key.
-- API keys live in the browser. Fine for personal use; a shared deployment should
-  call the LLM through a small backend instead.
+- Undo history is in memory and covers only changes made through the add-in in the current session.
+- Provider integrations are tested with stubbed responses; live API calls are not part of the test suite.
+- API keys are stored in the browser. A shared deployment should route LLM calls through a backend.
