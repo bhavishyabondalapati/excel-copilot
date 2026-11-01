@@ -14,3 +14,21 @@ __pycache__/
 .DS_Store
 *.log
 .vscode/
+
+# Security baseline: secrets, environments, logs, databases, raw data, model weights, OS files
+*.pem
+*.key
+*.p12
+credentials*.json
+secrets/
+.venv/
+logs/
+*.db
+*.sqlite3
+data/raw/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.h5

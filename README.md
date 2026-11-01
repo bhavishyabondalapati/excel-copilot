@@ -156,6 +156,7 @@ npm run check       # typecheck + tests
 ```
 excel-copilot/
 ├── manifest.xml               Add-in manifest: icons, task-pane URL, ribbon button, ExcelApi 1.9 requirement
+├── LICENSE                    MIT license
 ├── package.json               Dependencies and npm scripts
 ├── tsconfig.json              Strict TypeScript settings
 ├── vite.config.ts             Dev server (HTTPS when certs exist), build, Vitest config
@@ -214,3 +215,7 @@ See [DECISIONS.md](DECISIONS.md) for the full log. Highlights:
 - Undo history is in memory and covers only changes made through the add-in in the current session.
 - Provider integrations are tested with stubbed responses; live API calls are not part of the test suite.
 - API keys are stored in the browser. A shared deployment should route LLM calls through a backend.
+
+## License
+
+Code is released under the MIT License; see [LICENSE](LICENSE).

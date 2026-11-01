@@ -21,7 +21,7 @@
     "@anthropic-ai/sdk": "^0.131.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
