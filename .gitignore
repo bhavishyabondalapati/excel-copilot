@@ -32,3 +32,8 @@ data/raw/
 *.safetensors
 *.onnx
 *.h5
+
+# Local dev notes (kept out of the repo)
+CLAUDE.md
+MORNING_SUMMARY.md
+.claude/
